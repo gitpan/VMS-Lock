@@ -14,7 +14,7 @@ require AutoLoader;
 %EXPORT_TAGS = (lockmodes => [qw(VLOCK_NLMODE VLOCK_CRMODE VLOCK_CWMODE VLOCK_PRMODE VLOCK_PWMODE VLOCK_EXMODE)],
                 accmodes  => [qw(VLOCK_KERNEL VLOCK_EXEC VLOCK_SUPER VLOCK_USER)]);
 
-$VERSION = '1.0';
+$VERSION = '1.02';
 
 my $DEBUG = 0;
 my $DISPLAY_MODE = 0;
@@ -28,7 +28,8 @@ my %comment = (
     VALUE_BLOCK   => 'Lock Value Block passed about in Lock Status Block.',
     INV_VALBLOCK  => 'Set to 1 if SS$_VALNOTVALID returned in LSB.',
     DEADLOCK      => 'Set to 1 if SS$_DEADLOCK returned in LSB.',
-    DEBUG         => 'Level of debugging for this object.'
+    EXPEDITE      => 'Sets LCK$M_EXPEDITE flag for new lock.',
+    DEBUG         => 'Level of debugging for this object.',
    );
 
 my %quote = (
@@ -41,6 +42,7 @@ my %quote = (
     VALUE_BLOCK   => "'",
     INV_VALBLOCK  => "",
     DEADLOCK      => "",
+    EXPEDITE      => "",
     DEBUG         => "",
    );
 
@@ -85,13 +87,16 @@ sub new {
     VALUE_BLOCK   => "\0" x 16,
     INV_VALBLOCK  => 0,
     DEADLOCK      => 0,
+    EXPEDITE      => 0,
     DEBUG         => 0,
   };
 
-  if (exists $param{RESOURCE_NAME}) { $self->{RESOURCE_NAME} = $param{RESOURCE_NAME}; delete $param{RESOURCE_NAME} }
-  if (exists $param{SYSLOCK})       { $self->{SYSLOCK}       = $param{SYSLOCK};       delete $param{SYSLOCK} }
-  if (exists $param{ACCESS_MODE})   { $self->{ACCESS_MODE}   = $param{ACCESS_MODE};   delete $param{ACCESS_MODE} }
-  if (exists $param{DEBUG})         { $self->{DEBUG}         = $param{DEBUG};         delete $param{DEBUG} }
+  for my $tparam (qw(RESOURCE_NAME SYSLOCK ACCESS_MODE EXPEDITE DEBUG)) {
+    if (exists $param{$tparam}) {
+      $self->{$tparam} = $param{$tparam};
+      delete $param{$tparam};
+    }
+  }
 
   $tdebug = $DEBUG | $self->{DEBUG};
 
@@ -110,6 +115,7 @@ sub new {
 		  $self->{LOCK_ID},
 		  $self->{VALUE_BLOCK},
 		  $self->{INV_VALBLOCK},
+		  $self->{EXPEDITE},
 		  $tdebug);
 
   if ($tdebug & 1) { display ($self, "In new; result of _new; status = [$status]") }
@@ -159,11 +165,11 @@ sub convert {
   }
   elsif ($status == 0) {
     if ($tdebug & 1) { print "Status of 0 from _convert;  noqueue = [",$param{NOQUEUE},"].\n" }
-    $self->{NOQUEUE}      = $param{NOQUEUE};
+    $self->{NOQUEUE}     = $param{NOQUEUE};
   }
   else {  
-    $self->{LOCK_MODE}    = $param{LOCK_MODE};    # potentially modified
-    $self->{VALUE_BLOCK}  = $param{VALUE_BLOCK};  #   by _convert
+    $self->{LOCK_MODE}   = $param{LOCK_MODE};    # potentially modified
+    $self->{VALUE_BLOCK} = $param{VALUE_BLOCK};  #   by _convert
   }
 
   if ($tdebug & 1) { display ($self, "Result of _convert") }
@@ -172,6 +178,7 @@ sub convert {
 }
 
 sub value_block   { my $self = shift; return $self->{VALUE_BLOCK}; }
+sub expedite      { my $self = shift; return $self->{EXPEDITE}; }
 sub deadlock      { my $self = shift; return $self->{DEADLOCK}; }
 sub noqueue       { my $self = shift; return $self->{NOQUEUE}; }
 sub lock_id       { my $self = shift; return $self->{LOCK_ID}; }

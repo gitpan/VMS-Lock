@@ -49,16 +49,18 @@ int arg;
   return 0;
 }
 
-MODULE = VMS::Lock		PACKAGE = VMS::Lock		
+MODULE = VMS::Lock              PACKAGE = VMS::Lock
+PROTOTYPES: DISABLE
 
 int
-_new (resource_name, syslock, access_mode, lock_id, value_block, inv_valblock, debug)
+_new (resource_name, syslock, access_mode, lock_id, value_block, inv_valblock, expedite, debug)
   char * resource_name
   int syslock
   int access_mode
   int lock_id = NO_INIT
   SV * value_block
   int inv_valblock = NO_INIT
+  int expedite
   int debug
 
   CODE:
@@ -83,13 +85,14 @@ _new (resource_name, syslock, access_mode, lock_id, value_block, inv_valblock, d
   if (tdebug) printf ("In _new XS for resource_name [%s]...\n",resource_name);
 
   flags = LCK$M_VALBLK;
-  if (syslock != 0) flags |= LCK$M_SYSTEM;
+  if (syslock  != 0) flags |= LCK$M_SYSTEM;
+  if (expedite != 0) flags |= LCK$M_EXPEDITE;
 
   status = sys$enqw (0,          /* efn */
-		     LCK$K_NLMODE, /* lock mode */
-		     &lksb,        /* address of lock status block */
-		     flags,        /* flags */
-		     &resnam,      /* resource name descriptor*/
+                     LCK$K_NLMODE, /* lock mode */
+                     &lksb,        /* address of lock status block */
+                     flags,        /* flags */
+                     &resnam,      /* resource name descriptor*/
                      0,0,0,0,      /* many ignored things */
                      access_mode,  /* process access mode */
                      0);           /* one more ignored thing */
@@ -128,12 +131,12 @@ _new (resource_name, syslock, access_mode, lock_id, value_block, inv_valblock, d
         if (SvREADONLY(value_block)) {
           if (tdebug) printf("VALUE_BLOCK is readonly.\nSetting INV_VALBLOCK to 1.\n");
           inv_valblock = 1;
-	}
-	else {
+        }
+        else {
           if (tdebug) printf("Setting value_block to [%s].\n", lksb.value_block);
-	  sv_setpvn(value_block, lksb.value_block, 16);
-	  inv_valblock = 0;
-	}
+          sv_setpvn(value_block, lksb.value_block, 16);
+          inv_valblock = 0;
+        }
       }
       RETVAL = 1;
       break;
@@ -189,10 +192,10 @@ _convert (lock_id, lock_mode, value_block, noqueue, inv_valblock, deadlock, debu
   }
 
   status = sys$enqw (0,              /* efn */
-		     lock_mode,      /* lock mode */
-		     &lksb,          /* address of lock status block */
-		     flags,          /* flags */
-		     0,0,0,0,0,0,0); /* many ignored things */
+                     lock_mode,      /* lock mode */
+                     &lksb,          /* address of lock status block */
+                     flags,          /* flags */
+                     0,0,0,0,0,0,0); /* many ignored things */
 
   if (tdebug) {
     printf ("  status           = %d\n", status);
@@ -303,6 +306,6 @@ _debug (debug)
 
 double
 constant(name,arg)
-	char *		name
-	int		arg
+        char *          name
+        int             arg
 

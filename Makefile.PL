@@ -7,4 +7,5 @@ WriteMakefile(
     'LIBS'	=> [''],   # e.g., '-lm' 
     'DEFINE'	=> '',     # e.g., '-DHAVE_SOMETHING' 
     'INC'	=> '',     # e.g., '-I/usr/include/other' 
+    'POLLUTE'   => 1,      # namespace pollution for more modern Perls
 );
